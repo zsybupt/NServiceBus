@@ -88,44 +88,12 @@ namespace NServiceBus.Hosting.Helpers
                     ScanAssembly(assembly, results);
                 }
             }
-
-            // This extra step is to ensure unobtrusive message types are included in the Types list.
-            var list = GetHandlerMessageTypes(results.Types);
-            results.Types.AddRange(list);
-
+            
             results.RemoveDuplicates();
 
             return results;
         }
-
-        static List<Type> GetHandlerMessageTypes(List<Type> list)
-        {
-            var foundMessageTypes = new List<Type>();
-            foreach (var type in list)
-            {
-                if (type.IsAbstract || type.IsGenericTypeDefinition)
-                {
-                    continue;
-                }
-
-                foreach (var @interface in type.GetInterfaces())
-                {
-                    if (@interface.IsGenericType && @interface.GetGenericTypeDefinition() == IHandleMessagesType)
-                    {
-                        var messageType = @interface.GetGenericArguments()[0];
-                        foundMessageTypes.Add(messageType);
-                    }
-                }
-            }
-            return foundMessageTypes;
-        }
-
-        static string AssemblyPath(Assembly assembly)
-        {
-            var uri = new UriBuilder(assembly.CodeBase);
-            return Uri.UnescapeDataString(uri.Path).Replace('/', '\\');
-        }
-
+        
         bool TryLoadScannableAssembly(string assemblyPath, AssemblyScannerResults results, Dictionary<string, bool> processed, out Assembly assembly)
         {
             assembly = null;
@@ -512,7 +480,5 @@ namespace NServiceBus.Hosting.Helpers
             // And other windows azure stuff
             "Microsoft.WindowsAzure"
         };
-
-        static Type IHandleMessagesType = typeof(IHandleMessages<>);
     }
 }
