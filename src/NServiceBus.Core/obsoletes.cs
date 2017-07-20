@@ -13,9 +13,23 @@ namespace NServiceBus
     using System.Text;
     using Config.ConfigurationSource;
     using MessageInterfaces;
+    using Persistence;
     using Pipeline;
     using Serialization;
     using Settings;
+
+    public static partial class ConnectorContextExtensions
+    {
+        [ObsoleteEx(
+            Message = "A new Unit of Work stage has been introduced as a stage between 'NServiceBus.Pipeline.IIncomingLogicalMessageContext' and 'NServiceBus.Pipeline.IInvokeHandlerContext'.",
+            ReplacementTypeOrMember = "NServiceBus.ConnectorContextExtensions.CreateInvokeHandlerContext(this StageConnector<IUnitOfWorkContext, IInvokeHandlerContext> stageConnector, MessageHandler messageHandler, CompletableSynchronizedStorageSession storageSession, IIncomingLogicalMessageContext sourceContext)",
+            RemoveInVersion = "8",
+            TreatAsErrorFromVersion = "7")]
+        static IInvokeHandlerContext CreateInvokeHandlerContext(this StageConnector<IIncomingLogicalMessageContext, IInvokeHandlerContext> stageConnector, MessageHandler messageHandler, CompletableSynchronizedStorageSession storageSession, IIncomingLogicalMessageContext sourceContext)
+        {
+            throw new NotImplementedException();
+        }
+    }
 
     [ObsoleteEx(
            Message = "Message property encryption is released as a dedicated 'NServiceBus.Encryption.MessageProperty' package.",

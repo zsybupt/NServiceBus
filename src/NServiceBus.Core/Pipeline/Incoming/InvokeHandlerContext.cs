@@ -6,14 +6,31 @@ namespace NServiceBus
     using Pipeline;
     using Unicast.Messages;
 
-    class InvokeHandlerContext : IncomingContext, IInvokeHandlerContext
+    class IncomingUnitOfWorkContext : IncomingContext, IIncomingUnitOfWorkContext
     {
-        internal InvokeHandlerContext(MessageHandler handler, SynchronizedStorageSession storageSession, IIncomingLogicalMessageContext parentContext)
-            : this(handler, parentContext.MessageId, parentContext.ReplyToAddress, parentContext.Headers, parentContext.Message.Metadata, parentContext.Message.Instance, storageSession, parentContext)
+        internal IncomingUnitOfWorkContext(IReadOnlyCollection<MessageHandler> handlersToInvoke, SynchronizedStorageSession storageSession, IIncomingLogicalMessageContext parentContext)
+        {
+            
+        }
+        
+        internal IncomingUnitOfWorkContext(string messageId, string replyToAddress, IReadOnlyDictionary<string, string> headers, IBehaviorContext parentContext) : base(messageId, replyToAddress, headers, parentContext)
         {
         }
 
-        public InvokeHandlerContext(MessageHandler handler, string messageId, string replyToAddress, Dictionary<string, string> headers, MessageMetadata messageMetadata, object messageBeingHandled, SynchronizedStorageSession storageSession, IBehaviorContext parentContext)
+        public LogicalMessage Message { get; }
+        public Dictionary<string, string> Headers { get; }
+        public IReadOnlyCollection<MessageHandler> HandlersToInvoke { get; }
+        public SynchronizedStorageSession SynchronizedStorageSession { get; }
+    }
+
+    class InvokeHandlerContext : IncomingContext, IInvokeHandlerContext
+    {
+        internal InvokeHandlerContext(MessageHandler handler, IIncomingUnitOfWorkContext parentContext)
+            : this(handler, parentContext.MessageId, parentContext.ReplyToAddress, parentContext.Headers, parentContext.Message.Metadata, parentContext.Message.Instance, parentContext.SynchronizedStorageSession, parentContext)
+        {
+        }
+
+        internal InvokeHandlerContext(MessageHandler handler, string messageId, string replyToAddress, Dictionary<string, string> headers, MessageMetadata messageMetadata, object messageBeingHandled, SynchronizedStorageSession storageSession, IBehaviorContext parentContext)
             : base(messageId, replyToAddress, headers, parentContext)
         {
             MessageHandler = handler;
@@ -25,7 +42,17 @@ namespace NServiceBus
 
         public MessageHandler MessageHandler { get; }
 
-        public SynchronizedStorageSession SynchronizedStorageSession => Get<SynchronizedStorageSession>();
+        public SynchronizedStorageSession SynchronizedStorageSession
+        {
+            get
+            {
+                if (storageSession == null)
+                {
+                    storageSession = Get<SynchronizedStorageSession>();
+                }
+                return storageSession;
+            }
+        }
 
         public Dictionary<string, string> Headers { get; }
 
@@ -48,5 +75,7 @@ namespace NServiceBus
         {
             HandlerInvocationAborted = true;
         }
+
+        SynchronizedStorageSession storageSession;
     }
 }

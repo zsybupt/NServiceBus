@@ -18,7 +18,7 @@
         protected internal override void Setup(FeatureConfigurationContext context)
         {
             context.Pipeline.Register("TransportReceiveToPhysicalMessageProcessingConnector", b => b.Build<TransportReceiveToPhysicalMessageProcessingConnector>(), "Allows to abort processing the message");
-            context.Pipeline.Register("LoadHandlersConnector", b => b.Build<LoadHandlersConnector>(), "Gets all the handlers to invoke from the MessageHandler registry based on the message type.");
+            context.Pipeline.Register("LoadHandlersConnector", new LoadHandlersConnector(), "Gets all the handlers to invoke from the MessageHandler registry based on the message type.");
 
             context.Pipeline.Register("ExecuteUnitOfWork", new UnitOfWorkBehavior(), "Executes the UoW");
 
@@ -36,7 +36,7 @@
                 var adapter = context.Container.HasComponent<ISynchronizedStorageAdapter>() ? b.Build<ISynchronizedStorageAdapter>() : new NoOpAdapter();
                 var syncStorage = context.Container.HasComponent<ISynchronizedStorage>() ? b.Build<ISynchronizedStorage>() : new NoOpSynchronizedStorage();
 
-                return new LoadHandlersConnector(b.Build<MessageHandlerRegistry>(), syncStorage, adapter);
+                return new UnitOfWorkConnector(b.Build<MessageHandlerRegistry>(), syncStorage, adapter);
             }, DependencyLifecycle.InstancePerCall);
         }
 

@@ -9,7 +9,7 @@ namespace NServiceBus
     /// <summary>
     /// Contains extensions methods to map behavior contexts.
     /// </summary>
-    public static class ConnectorContextExtensions
+    public static partial class ConnectorContextExtensions
     {
         /// <summary>
         /// Creates a <see cref="IRoutingContext" /> based on the current context.
@@ -98,15 +98,26 @@ namespace NServiceBus
         }
 
         /// <summary>
-        /// Creates a <see cref="IInvokeHandlerContext" /> based on the current context.
+        /// Creates a <see cref="IIncomingUnitOfWorkContext" /> based on the current context.
         /// </summary>
-        public static IInvokeHandlerContext CreateInvokeHandlerContext(this StageConnector<IIncomingLogicalMessageContext, IInvokeHandlerContext> stageConnector, MessageHandler messageHandler, CompletableSynchronizedStorageSession storageSession, IIncomingLogicalMessageContext sourceContext)
+        public static IIncomingUnitOfWorkContext CreateIncomingUnitOfWorkContext(this StageConnector<IIncomingLogicalMessageContext, IIncomingUnitOfWorkContext> stageConnector, IReadOnlyCollection<MessageHandler> handlersToInvoke, SynchronizedStorageSession storageSession, IIncomingLogicalMessageContext sourceContext)
         {
-            Guard.AgainstNull(nameof(messageHandler), messageHandler);
+            Guard.AgainstNull(nameof(handlersToInvoke), handlersToInvoke);
             Guard.AgainstNull(nameof(storageSession), storageSession);
             Guard.AgainstNull(nameof(sourceContext), sourceContext);
 
-            return new InvokeHandlerContext(messageHandler, storageSession, sourceContext);
+            return new IncomingUnitOfWorkContext(handlersToInvoke, storageSession, sourceContext);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="IInvokeHandlerContext" /> based on the current context.
+        /// </summary>
+        public static IInvokeHandlerContext CreateInvokeHandlerContext(this StageConnector<IIncomingUnitOfWorkContext, IInvokeHandlerContext> stageConnector, MessageHandler messageHandler, IIncomingUnitOfWorkContext sourceContext)
+        {
+            Guard.AgainstNull(nameof(messageHandler), messageHandler);
+            Guard.AgainstNull(nameof(sourceContext), sourceContext);
+
+            return new InvokeHandlerContext(messageHandler, sourceContext);
         }
 
         /// <summary>

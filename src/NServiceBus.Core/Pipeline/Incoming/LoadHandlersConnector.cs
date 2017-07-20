@@ -9,42 +9,30 @@
     using Transport;
     using Unicast;
 
-    class LoadHandlersConnector : StageConnector<IIncomingLogicalMessageContext, IInvokeHandlerContext>
+    class UnitOfWorkConnector : StageConnector<IIncomingLogicalMessageContext, IIncomingUnitOfWorkContext>
     {
-        public LoadHandlersConnector(MessageHandlerRegistry messageHandlerRegistry, ISynchronizedStorage synchronizedStorage, ISynchronizedStorageAdapter adapter)
+        public UnitOfWorkConnector(MessageHandlerRegistry messageHandlerRegistry, ISynchronizedStorage synchronizedStorage, ISynchronizedStorageAdapter adapter)
         {
             this.messageHandlerRegistry = messageHandlerRegistry;
             this.synchronizedStorage = synchronizedStorage;
             this.adapter = adapter;
         }
 
-        public override async Task Invoke(IIncomingLogicalMessageContext context, Func<IInvokeHandlerContext, Task> stage)
+        public override async Task Invoke(IIncomingLogicalMessageContext context, Func<IIncomingUnitOfWorkContext, Task> stage)
         {
+            var handlersToInvoke = messageHandlerRegistry.GetHandlersFor(context.Message.MessageType);
+
+            if (!context.MessageHandled && handlersToInvoke.Count == 0)
+            {
+                var error = $"No handlers could be found for message type: {context.Message.MessageType}";
+                throw new InvalidOperationException(error);
+            }
+
             var outboxTransaction = context.Extensions.Get<OutboxTransaction>();
             var transportTransaction = context.Extensions.Get<TransportTransaction>();
             using (var storageSession = await AdaptOrOpenNewSynchronizedStorageSession(transportTransaction, outboxTransaction, context.Extensions).ConfigureAwait(false))
             {
-                var handlersToInvoke = messageHandlerRegistry.GetHandlersFor(context.Message.MessageType);
-
-                if (!context.MessageHandled && handlersToInvoke.Count == 0)
-                {
-                    var error = $"No handlers could be found for message type: {context.Message.MessageType}";
-                    throw new InvalidOperationException(error);
-                }
-
-                foreach (var messageHandler in handlersToInvoke)
-                {
-                    messageHandler.Instance = context.Builder.Build(messageHandler.HandlerType);
-
-                    var handlingContext = this.CreateInvokeHandlerContext(messageHandler, storageSession, context);
-                    await stage(handlingContext).ConfigureAwait(false);
-
-                    if (handlingContext.HandlerInvocationAborted)
-                    {
-                        //if the chain was aborted skip the other handlers
-                        break;
-                    }
-                }
+                await stage(this.CreateIncomingUnitOfWorkContext(handlersToInvoke, storageSession, context)).ConfigureAwait(false);
                 context.MessageHandled = true;
                 await storageSession.CompleteAsync().ConfigureAwait(false);
             }
@@ -59,8 +47,26 @@
 
         readonly ISynchronizedStorageAdapter adapter;
         readonly ISynchronizedStorage synchronizedStorage;
+        readonly MessageHandlerRegistry messageHandlerRegistry;
+    }
 
+    class LoadHandlersConnector : StageConnector<IIncomingUnitOfWorkContext, IInvokeHandlerContext>
+    {
+      public override async Task Invoke(IIncomingUnitOfWorkContext context, Func<IInvokeHandlerContext, Task> stage)
+        {
+            foreach (var messageHandler in context.HandlersToInvoke)
+            {
+                messageHandler.Instance = context.Builder.Build(messageHandler.HandlerType);
 
-        MessageHandlerRegistry messageHandlerRegistry;
+                var handlingContext = this.CreateInvokeHandlerContext(messageHandler, context);
+                await stage(handlingContext).ConfigureAwait(false);
+
+                if (handlingContext.HandlerInvocationAborted)
+                {
+                    //if the chain was aborted skip the other handlers
+                    break;
+                }
+            }
+        }
     }
 }
