@@ -50,7 +50,7 @@
                 .ConfigureProperty(t => t.Disabled, false)
                 .ConfigureProperty(t => t.InputAddress, dispatcherAddress);
 
-            context.Container.ConfigureComponent<TimeoutPersisterReceiver>(DependencyLifecycle.SingleInstance)
+            context.Container.ConfigureComponent<TimeoutPersisterReceiver>(() => new TimeoutPersisterReceiver(() => DateTime.UtcNow), DependencyLifecycle.SingleInstance)
                 .ConfigureProperty(t => t.TimeToWaitBeforeTriggeringCriticalError, context.Settings.Get<TimeSpan>("TimeToWaitBeforeTriggeringCriticalErrorForTimeoutPersisterReceiver"))
                 .ConfigureProperty(t => t.DispatcherAddress, dispatcherAddress);
             context.Container.ConfigureComponent<DefaultTimeoutManager>(DependencyLifecycle.SingleInstance);

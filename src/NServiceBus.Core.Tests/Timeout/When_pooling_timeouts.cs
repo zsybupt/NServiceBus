@@ -43,7 +43,7 @@ namespace NServiceBus.Core.Tests.Timeout
                     MessageSender = messageSender,
                 };
 
-            receiver = new TimeoutPersisterReceiver
+            receiver = new TimeoutPersisterReceiver(() => DateTime.UtcNow)
                 {
                     TimeoutManager = manager,
                     TimeoutsPersister = persister,
